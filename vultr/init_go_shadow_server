@@ -1,0 +1,110 @@
+#!/bin/bash
+
+Initd="/etc/rc.d/init.d/shadowsocks"
+
+Init3="/etc/rc.d/rc3.d/S30shadowsocks"
+
+which "git" > /dev/null
+if [ $? -eq 0 ]
+then
+    echo command is exist
+else
+    echo command not exist
+	yum install -y git
+
+	yum install -y go
+
+	export GOPATH=/root/go
+fi
+
+cd /root
+
+git clone https://github.com/shadowsocks/shadowsocks-go.git
+
+cd /root/shadowsocks-go/cmd/shadowsocks-server
+
+echo go get..
+
+go get > info
+
+echo go build..
+
+go build && ln -s `pwd`/shadowsocks-server /usr/bin/shadowsocks &&\
+cp ../../sample-config/server-multi-port.json config.json
+
+echo firewall-cmd..
+
+firewall-cmd --zone=public --add-port=8387/tcp --permanent
+
+firewall-cmd --zone=public --add-port=8388/tcp --permanent
+
+echo '#!/bin/bash
+App="shadowsocks"
+Config="/root/shadowsocks-go/cmd/shadowsocks-server/config.json"
+Log="/root/shadowsocks-go/cmd/shadowsocks-server/log"
+
+echo $1
+echo $App
+
+function killProsess() {
+        NAME=$1
+        echo $NAME
+
+        #获取进程 PID
+        PID=$(ps -ef | grep "$NAME" | awk '"'"'{print $2}'"'"')
+
+        echo "PID: $PID"
+        #杀死进程
+        kill -9 $PID
+}
+
+function start() {
+        echo "start"
+        echo "----------------"
+        echo $App -c $Config
+        #( nohup $App -c $Config > $Log ) &
+        #nohup $App -c $Config > $Log 2>&1
+        nohup $App -c $Config > $Log 2>&1 &
+}
+
+function stop() {
+        echo "stop"
+        echo "----------------"
+        killProsess "$App -c $Config"
+}
+
+function restart() {
+        echo "restart"
+        echo "----------------"
+        stop
+        start
+}
+
+case "$1" in
+        start )
+                echo "****************"
+                start
+                echo "****************"
+                ;;
+        stop )
+                echo "****************"
+                stop
+                echo "****************"
+                ;;
+        restart )
+                echo "****************"
+                restart
+                echo "****************"
+                ;;
+        * )
+                echo "****************"
+                echo "no command"
+                echo "****************"
+                ;;
+esac
+
+' > $Initd
+
+chmod +x $Initd
+
+ln -s $Initd $Init3

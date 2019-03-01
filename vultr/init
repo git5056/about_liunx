@@ -1,0 +1,17 @@
+#!/bin/bash
+
+BaseUrl="https://raw.githubusercontent.com/git5056/about_liunx/master/vultr/"
+function initsome() {
+		NAME=$1
+		cd /root
+		ls init_temp.d || mkdir init_temp.d
+		cd /root/init_temp.d
+		wget --no-check-certificate "$BaseUrl""$NAME"
+		sh $NAME
+}
+
+#initsome $1
+
+initsome init_go_shadow_server
+
+initsome init_go_kcp_tun_server

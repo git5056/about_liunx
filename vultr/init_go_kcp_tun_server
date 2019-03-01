@@ -1,0 +1,97 @@
+#!/bin/bash
+
+Initd="/etc/rc.d/init.d/kcptunserver"
+
+Init3="/etc/rc.d/rc3.d/S50kcptunserver"
+
+cd /root
+
+mkdir /root/kcptun
+
+cd /root/kcptun
+
+wget --no-check-certificate https://github.com/xtaci/kcptun/releases/download/v20181002/kcptun-linux-amd64-20181002.tar.gz
+
+tar -xzf kcptun-linux-amd64-20181002.tar.gz
+
+ln -s `pwd`/server_linux_amd64 /usr/bin/kcptunserver
+
+echo firewall-cmd..
+
+firewall-cmd --zone=public --add-port=13601/udp --permanent
+
+firewall-cmd --zone=public --add-port=13601/tcp --permanent
+
+mkdir /root/kcptun
+
+echo '#!/bin/bash
+App="kcptunserver"
+Config="none"
+Log="/root/kcptun/log"
+
+echo $1
+echo $App
+
+function killProsess() {
+        NAME=$1
+        echo $NAME
+
+        #获取进程 PID
+        PID=$(ps -ef | grep "$NAME" | awk '"'"'{print $2}'"'"')
+
+        echo "PID: $PID"
+        #杀死进程
+        kill -9 $PID
+}
+
+function start() {
+        echo "start"
+        echo "----------------"
+        echo $App -c $Config
+        #( nohup $App -c $Config > $Log ) &
+        #nohup $App -c $Config > $Log 2>&1
+		
+        nohup $App -t "`ip addr|grep inet|grep eth0|awk -F/ '"'"'{print $1}'"'"'|awk '"'"'{print $2}'"'"'`:8387" -l ":13601" --key kcp5056 --mode fast2 > $Log 2>&1 &
+}
+
+function stop() {
+        echo "stop"
+        echo "----------------"
+        killProsess "$App"
+}
+
+function restart() {
+        echo "restart"
+        echo "----------------"
+        stop
+        start
+}
+
+case "$1" in
+        start )
+                echo "****************"
+                start
+                echo "****************"
+                ;;
+        stop )
+                echo "****************"
+                stop
+                echo "****************"
+                ;;
+        restart )
+                echo "****************"
+                restart
+                echo "****************"
+                ;;
+        * )
+                echo "****************"
+                echo "no command"
+                echo "****************"
+                ;;
+esac
+
+' > $Initd
+
+chmod +x $Initd
+
+ln -s $Initd $Init3
